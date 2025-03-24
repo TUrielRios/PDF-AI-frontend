@@ -2,7 +2,7 @@ import { Box, Container, Typography, Link, IconButton, Divider } from "@mui/mate
 import GitHubIcon from "@mui/icons-material/GitHub"
 import LinkedInIcon from "@mui/icons-material/LinkedIn"
 import TwitterIcon from "@mui/icons-material/Twitter"
-import styles from "./footer.module.css"
+import styles from "./Footer.module.css"
 
 export default function Footer() {
   return (
