@@ -1,0 +1,27 @@
+.navbar {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(10px);
+  }
+  
+  .navButton {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .navButton::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: currentColor;
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+  }
+  
+  .navButton:hover::after {
+    width: 80%;
+  }
+  
+  
