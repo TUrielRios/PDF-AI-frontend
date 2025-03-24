@@ -19,7 +19,7 @@ import {
 import { useTheme } from "@mui/material/styles"
 import MenuIcon from "@mui/icons-material/Menu"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
-import styles from "./navbar.module.css"
+import styles from "./Navbar.module.css"
 
 export default function Navbar({ currentView, onViewChange }) {
   const theme = useTheme()
