@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Fade,
 } from "@mui/material"
+import ChatIcon from "@mui/icons-material/Chat"
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome"
 import SummarizeIcon from "@mui/icons-material/Summarize"
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore"
@@ -80,17 +81,7 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
         throw new Error("Error al generar el resumen")
       }
 
-      // Si el backend no soporta streaming, usar la respuesta normal
-      if (!response.headers.get("Content-Type")?.includes("text/event-stream")) {
-        const data = await response.json()
-        setSummaries((prev) => ({
-          ...prev,
-          [currentPage]: data.summary,
-        }))
-        return
-      }
-
-      // Leer la respuesta en streaming
+      // Configurar un lector para procesar la respuesta en streaming
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let accumulatedContent = ""
@@ -346,48 +337,198 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
                       }}
                     >
                       <ReactMarkdown
+                        children={summaries[currentPage]}
                         components={{
-                          p: (props) => (
+                          p: ({ node, ...props }) => (
                             <Typography
+                              component="div"
                               variant="body1"
                               sx={{
-                                lineHeight: 1.6,
-                                fontSize: "1rem",
-                                mb: 2,
+                                lineHeight: 1.8,
+                                fontSize: "1.05rem",
+                                mb: 2.5,
                                 color: "text.primary",
+                                textAlign: "justify",
                               }}
                               {...props}
                             />
                           ),
-                          strong: (props) => <span style={{ fontWeight: 700, color: "#059669" }} {...props} />,
-                          em: (props) => <span style={{ fontStyle: "italic", color: "#0d9488" }} {...props} />,
-                          h1: (props) => (
+                          strong: ({ node, ...props }) => (
+                            <Box
+                              component="span"
+                              sx={{
+                                fontWeight: 700,
+                                color: theme.palette.secondary.dark,
+                                bgcolor: "rgba(16, 185, 129, 0.1)",
+                                px: 0.5,
+                                borderRadius: 1,
+                                display: "inline-block",
+                              }}
+                              {...props}
+                            />
+                          ),
+                          em: ({ node, ...props }) => (
+                            <Box
+                              component="span"
+                              sx={{
+                                fontStyle: "italic",
+                                color: theme.palette.secondary.main,
+                                textDecoration: "underline",
+                                textDecorationColor: "rgba(16, 185, 129, 0.3)",
+                                textDecorationThickness: "1px",
+                                textUnderlineOffset: "3px",
+                              }}
+                              {...props}
+                            />
+                          ),
+                          h1: ({ node, ...props }) => (
                             <Typography
                               variant="h5"
-                              sx={{ fontWeight: 700, mb: 2, color: "secondary.dark" }}
+                              component="div"
+                              sx={{
+                                fontWeight: 700,
+                                mb: 2,
+                                mt: 3,
+                                color: theme.palette.secondary,
+                                borderBottom: "2px solid",
+                                borderColor: theme.palette.secondary.light,
+                                pb: 1,
+                              }}
                               {...props}
                             />
                           ),
-                          h2: (props) => (
+                          h2: ({ node, ...props }) => (
                             <Typography
                               variant="h6"
-                              sx={{ fontWeight: 700, mb: 1.5, color: "secondary.dark" }}
+                              component="div"
+                              sx={{
+                                fontWeight: 700,
+                                mb: 1.5,
+                                mt: 2.5,
+                                color: theme.palette.secondary.main,
+                              }}
                               {...props}
                             />
                           ),
-                          h3: (props) => (
+                          h3: ({ node, ...props }) => (
                             <Typography
                               variant="subtitle1"
-                              sx={{ fontWeight: 700, mb: 1, color: "secondary.dark" }}
+                              component="div"
+                              sx={{
+                                fontWeight: 700,
+                                mb: 1.5,
+                                mt: 2,
+                                color: theme.palette.secondary.dark,
+                                borderLeft: "3px solid",
+                                borderColor: theme.palette.secondary.light,
+                                pl: 1.5,
+                              }}
                               {...props}
                             />
                           ),
-                          ul: (props) => <Box component="ul" sx={{ pl: 2, mb: 2 }} {...props} />,
-                          li: (props) => <Typography component="li" variant="body1" sx={{ mb: 1 }} {...props} />,
+                          ul: ({ node, ...props }) => (
+                            <Box
+                              component="ul"
+                              sx={{
+                                pl: 2,
+                                mb: 2.5,
+                                "& li": {
+                                  mb: 1,
+                                },
+                                "& li::marker": {
+                                  color: theme.palette.secondary.main,
+                                },
+                              }}
+                              {...props}
+                            />
+                          ),
+                          ol: ({ node, ...props }) => (
+                            <Box
+                              component="ol"
+                              sx={{
+                                pl: 2,
+                                mb: 2.5,
+                                "& li": {
+                                  mb: 1,
+                                },
+                                "& li::marker": {
+                                  color: theme.palette.secondary.main,
+                                  fontWeight: 600,
+                                },
+                              }}
+                              {...props}
+                            />
+                          ),
+                          li: ({ node, ...props }) => (
+                            <Typography
+                              component="li"
+                              variant="body1"
+                              sx={{
+                                mb: 1,
+                                pl: 0.5,
+                              }}
+                              {...props}
+                            />
+                          ),
+                          blockquote: ({ node, ...props }) => (
+                            <Box
+                              component="blockquote"
+                              sx={{
+                                borderLeft: "4px solid",
+                                borderColor: theme.palette.secondary.light,
+                                pl: 2,
+                                py: 0.5,
+                                my: 2,
+                                bgcolor: "rgba(16, 185, 129, 0.05)",
+                                borderRadius: "0 4px 4px 0",
+                                "& p": {
+                                  fontStyle: "italic",
+                                  color: theme.palette.text.secondary,
+                                  m: 0,
+                                },
+                              }}
+                              {...props}
+                            />
+                          ),
+                          code: ({ node, inline, ...props }) =>
+                            inline ? (
+                              <Box
+                                component="code"
+                                sx={{
+                                  fontFamily: "monospace",
+                                  bgcolor: "rgba(0, 0, 0, 0.04)",
+                                  p: 0.5,
+                                  borderRadius: 1,
+                                  fontSize: "0.9em",
+                                }}
+                                {...props}
+                              />
+                            ) : (
+                              <Box
+                                component="pre"
+                                sx={{
+                                  fontFamily: "monospace",
+                                  bgcolor: "rgba(0, 0, 0, 0.04)",
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  fontSize: "0.9em",
+                                  overflowX: "auto",
+                                }}
+                              >
+                                <Box component="code" {...props} />
+                              </Box>
+                            ),
+                          hr: ({ node, ...props }) => (
+                            <Divider
+                              sx={{
+                                my: 2.5,
+                                borderColor: "rgba(16, 185, 129, 0.2)",
+                              }}
+                              {...props}
+                            />
+                          ),
                         }}
-                      >
-                        {summaries[currentPage]}
-                      </ReactMarkdown>
+                      />
                       {streamingSummary && (
                         <Box component="span" sx={{ display: "inline-block", ml: 0.5 }}>
                           <Typography
@@ -451,7 +592,7 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
       </Grid>
 
       {/* AI Explanation - Bottom */}
-      {/* <Card
+      <Card
         elevation={3}
         sx={{
           borderRadius: 3,
@@ -487,26 +628,143 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
           <Divider sx={{ mb: 2 }} />
           <ReactMarkdown
             components={{
-              p: (props) => (
+              p: ({ node, ...props }) => (
                 <Typography
+                  component="div"
                   variant="body1"
                   sx={{
-                    lineHeight: 1.6,
-                    fontSize: "1rem",
-                    mb: 2,
+                    lineHeight: 1.8,
+                    fontSize: "1.05rem",
+                    mb: 2.5,
+                    color: "text.primary",
+                    textAlign: "justify",
                   }}
                   {...props}
                 />
               ),
-              strong: (props) => <span style={{ fontWeight: 700, color: "#2563eb" }} {...props} />,
-              ul: (props) => <Box component="ul" sx={{ pl: 2, mb: 2 }} {...props} />,
-              li: (props) => <Typography component="li" variant="body1" sx={{ mb: 1 }} {...props} />,
+              strong: ({ node, ...props }) => (
+                <Box
+                  component="span"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.primary.dark,
+                    bgcolor: "rgba(58, 134, 255, 0.1)",
+                    px: 0.5,
+                    borderRadius: 1,
+                    display: "inline-block",
+                  }}
+                  {...props}
+                />
+              ),
+              em: ({ node, ...props }) => (
+                <Box
+                  component="span"
+                  sx={{
+                    fontStyle: "italic",
+                    color: theme.palette.primary.main,
+                    textDecoration: "underline",
+                    textDecorationColor: "rgba(58, 134, 255, 0.3)",
+                    textDecorationThickness: "1px",
+                    textUnderlineOffset: "3px",
+                  }}
+                  {...props}
+                />
+              ),
+              h1: ({ node, ...props }) => (
+                <Typography
+                  variant="h5"
+                  component="div"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 2,
+                    mt: 3,
+                    color: theme.palette.primary.dark,
+                    borderBottom: "2px solid",
+                    borderColor: theme.palette.primary.light,
+                    pb: 1,
+                  }}
+                  {...props}
+                />
+              ),
+              h2: ({ node, ...props }) => (
+                <Typography
+                  variant="h6"
+                  component="div"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 1.5,
+                    mt: 2.5,
+                    color: theme.palette.primary.main,
+                  }}
+                  {...props}
+                />
+              ),
+              h3: ({ node, ...props }) => (
+                <Typography
+                  variant="subtitle1"
+                  component="div"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 1.5,
+                    mt: 2,
+                    color: theme.palette.primary.dark,
+                    borderLeft: "3px solid",
+                    borderColor: theme.palette.primary.light,
+                    pl: 1.5,
+                  }}
+                  {...props}
+                />
+              ),
+              ul: ({ node, ...props }) => (
+                <Box
+                  component="ul"
+                  sx={{
+                    pl: 2,
+                    mb: 2.5,
+                    "& li": {
+                      mb: 1,
+                    },
+                    "& li::marker": {
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                  {...props}
+                />
+              ),
+              ol: ({ node, ...props }) => (
+                <Box
+                  component="ol"
+                  sx={{
+                    pl: 2,
+                    mb: 2.5,
+                    "& li": {
+                      mb: 1,
+                    },
+                    "& li::marker": {
+                      color: theme.palette.primary.main,
+                      fontWeight: 600,
+                    },
+                  }}
+                  {...props}
+                />
+              ),
+              li: ({ node, ...props }) => (
+                <Typography
+                  component="li"
+                  variant="body1"
+                  sx={{
+                    mb: 1,
+                    pl: 0.5,
+                  }}
+                  {...props}
+                />
+              ),
             }}
           >
             {pdfData.explanation}
           </ReactMarkdown>
         </CardContent>
-      </Card> */}
+      </Card>
     </Box>
   )
 }
