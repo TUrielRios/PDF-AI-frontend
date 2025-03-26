@@ -26,11 +26,12 @@ import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore"
 import NavigateNextIcon from "@mui/icons-material/NavigateNext"
 import PDFtest from "./PDFtest"
 import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import rehypeRaw from "rehype-raw"
 
 export default function ResultsView({ pdfData, onChatOpen, summaries, setSummaries }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [loadingSummary, setLoadingSummary] = useState(false)
-  const [streamingSummary, setStreamingSummary] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down("md"))
   const totalPages = Object.keys(pdfData.pages).length
@@ -56,16 +57,11 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
     if (summaries[currentPage]) return
 
     setLoadingSummary(true)
-    setStreamingSummary(true)
 
     try {
-      // Inicializar el resumen vacío para empezar a mostrar el streaming
-      setSummaries((prev) => ({
-        ...prev,
-        [currentPage]: "",
-      }))
-
-      const response = await fetch("https://pdf-ai-teal.vercel.app/summarize", {
+      // Hacer la solicitud al backend para generar el resumen
+      //const response = await fetch("http://localhost:5000/summarize", {
+      const response = await fetch("https://pdf-ai-teal.vercel.app/summarize",{
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,37 +77,18 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
         throw new Error("Error al generar el resumen")
       }
 
-      // Configurar un lector para procesar la respuesta en streaming
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let accumulatedContent = ""
+      // Obtener la respuesta JSON
+      const data = await response.json()
+      console.log("Respuesta completa:", data)
 
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          break
-        }
-
-        // Decodificar el chunk recibido
-        const chunk = decoder.decode(value, { stream: true })
-
-        // Procesar los eventos SSE
-        const lines = chunk.split("\n\n")
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const content = line.substring(6) // Quitar "data: "
-
-            // Acumular el contenido
-            accumulatedContent += content
-
-            // Actualizar el resumen con el contenido acumulado
-            setSummaries((prev) => ({
-              ...prev,
-              [currentPage]: accumulatedContent,
-            }))
-          }
-        }
+      // Actualizar el resumen con la respuesta completa
+      if (data.summary) {
+        setSummaries((prev) => ({
+          ...prev,
+          [currentPage]: data.summary,
+        }))
+      } else if (data.error) {
+        throw new Error(data.error)
       }
     } catch (error) {
       console.error("Error al generar el resumen:", error)
@@ -122,8 +99,231 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
       }))
     } finally {
       setLoadingSummary(false)
-      setStreamingSummary(false)
     }
+  }
+
+  // Función para renderizar el contenido markdown
+  const renderMarkdown = (content, variant = "secondary") => {
+    const colors =
+      variant === "primary"
+        ? {
+            main: theme.palette.primary.main,
+            dark: theme.palette.primary.dark,
+            light: theme.palette.primary.light,
+            bgHighlight: "rgba(58, 134, 255, 0.1)",
+            decorationColor: "rgba(58, 134, 255, 0.3)",
+          }
+        : {
+            main: theme.palette.secondary.main,
+            dark: theme.palette.secondary.dark,
+            light: theme.palette.secondary.light,
+            bgHighlight: "rgba(16, 185, 129, 0.1)",
+            decorationColor: "rgba(16, 185, 129, 0.3)",
+          }
+
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={{
+          p: ({ node, ...props }) => (
+            <Typography
+              component="div"
+              variant="body1"
+              sx={{
+                lineHeight: 1.8,
+                fontSize: "1.05rem",
+                mb: 2.5,
+                color: "text.primary",
+                textAlign: "justify",
+                whiteSpace: "pre-wrap",
+                "& > p": {
+                  marginBottom: 2,
+                  display: "block",
+                },
+              }}
+              {...props}
+            />
+          ),
+          strong: ({ node, ...props }) => (
+            <Box
+              component="span"
+              sx={{
+                fontWeight: 700,
+                color: colors.dark,
+                bgcolor: colors.bgHighlight,
+                px: 0.5,
+                borderRadius: 1,
+                display: "inline-block",
+              }}
+              {...props}
+            />
+          ),
+          em: ({ node, ...props }) => (
+            <Box
+              component="span"
+              sx={{
+                fontStyle: "italic",
+                color: colors.main,
+                textDecoration: "underline",
+                textDecorationColor: colors.decorationColor,
+                textDecorationThickness: "1px",
+                textUnderlineOffset: "3px",
+              }}
+              {...props}
+            />
+          ),
+          h1: ({ node, ...props }) => (
+            <Typography
+              variant="h5"
+              component="div"
+              sx={{
+                fontWeight: 700,
+                mb: 2,
+                mt: 3,
+                color: colors.dark,
+                borderBottom: "2px solid",
+                borderColor: colors.light,
+                pb: 1,
+              }}
+              {...props}
+            />
+          ),
+          h2: ({ node, ...props }) => (
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                fontWeight: 700,
+                mb: 1.5,
+                mt: 2.5,
+                color: colors.main,
+              }}
+              {...props}
+            />
+          ),
+          h3: ({ node, ...props }) => (
+            <Typography
+              variant="subtitle1"
+              component="div"
+              sx={{
+                fontWeight: 700,
+                mb: 1.5,
+                mt: 2,
+                color: colors.dark,
+                borderLeft: "3px solid",
+                borderColor: colors.light,
+                pl: 1.5,
+              }}
+              {...props}
+            />
+          ),
+          ul: ({ node, ...props }) => (
+            <Box
+              component="ul"
+              sx={{
+                pl: 2,
+                mb: 2.5,
+                "& li": {
+                  mb: 1,
+                },
+                "& li::marker": {
+                  color: colors.main,
+                },
+              }}
+              {...props}
+            />
+          ),
+          ol: ({ node, ...props }) => (
+            <Box
+              component="ol"
+              sx={{
+                pl: 2,
+                mb: 2.5,
+                "& li": {
+                  mb: 1,
+                },
+                "& li::marker": {
+                  color: colors.main,
+                  fontWeight: 600,
+                },
+              }}
+              {...props}
+            />
+          ),
+          li: ({ node, ...props }) => (
+            <Typography
+              component="li"
+              variant="body1"
+              sx={{
+                mb: 1,
+                pl: 0.5,
+              }}
+              {...props}
+            />
+          ),
+          blockquote: ({ node, ...props }) => (
+            <Box
+              component="blockquote"
+              sx={{
+                borderLeft: "4px solid",
+                borderColor: colors.light,
+                pl: 2,
+                py: 0.5,
+                my: 2,
+                bgcolor: `rgba(${variant === "primary" ? "58, 134, 255" : "16, 185, 129"}, 0.05)`,
+                borderRadius: "0 4px 4px 0",
+                "& p": {
+                  fontStyle: "italic",
+                  color: theme.palette.text.secondary,
+                  m: 0,
+                },
+              }}
+              {...props}
+            />
+          ),
+          code: ({ node, inline, ...props }) =>
+            inline ? (
+              <Box
+                component="code"
+                sx={{
+                  fontFamily: "monospace",
+                  bgcolor: "rgba(0, 0, 0, 0.04)",
+                  p: 0.5,
+                  borderRadius: 1,
+                  fontSize: "0.9em",
+                }}
+                {...props}
+              />
+            ) : (
+              <Box
+                component="pre"
+                sx={{
+                  fontFamily: "monospace",
+                  bgcolor: "rgba(0, 0, 0, 0.04)",
+                  p: 1.5,
+                  borderRadius: 2,
+                  fontSize: "0.9em",
+                  overflowX: "auto",
+                }}
+              >
+                <Box component="code" {...props} />
+              </Box>
+            ),
+          hr: ({ node, ...props }) => (
+            <Divider
+              sx={{
+                my: 2.5,
+                borderColor: `rgba(${variant === "primary" ? "58, 134, 255" : "16, 185, 129"}, 0.2)`,
+              }}
+              {...props}
+            />
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    )
   }
 
   return (
@@ -295,7 +495,7 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
             </Box>
 
             <Box sx={{ p: 3, flexGrow: 1, overflow: "auto" }}>
-              {loadingSummary && !summaries[currentPage] ? (
+              {loadingSummary ? (
                 <Box
                   sx={{
                     display: "flex",
@@ -336,217 +536,7 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
                         borderColor: "rgba(16, 185, 129, 0.2)",
                       }}
                     >
-                      <ReactMarkdown
-                        children={summaries[currentPage]}
-                        components={{
-                          p: ({ node, ...props }) => (
-                            <Typography
-                              component="div"
-                              variant="body1"
-                              sx={{
-                                lineHeight: 1.8,
-                                fontSize: "1.05rem",
-                                mb: 2.5,
-                                color: "text.primary",
-                                textAlign: "justify",
-                              }}
-                              {...props}
-                            />
-                          ),
-                          strong: ({ node, ...props }) => (
-                            <Box
-                              component="span"
-                              sx={{
-                                fontWeight: 700,
-                                color: theme.palette.secondary.dark,
-                                bgcolor: "rgba(16, 185, 129, 0.1)",
-                                px: 0.5,
-                                borderRadius: 1,
-                                display: "inline-block",
-                              }}
-                              {...props}
-                            />
-                          ),
-                          em: ({ node, ...props }) => (
-                            <Box
-                              component="span"
-                              sx={{
-                                fontStyle: "italic",
-                                color: theme.palette.secondary.main,
-                                textDecoration: "underline",
-                                textDecorationColor: "rgba(16, 185, 129, 0.3)",
-                                textDecorationThickness: "1px",
-                                textUnderlineOffset: "3px",
-                              }}
-                              {...props}
-                            />
-                          ),
-                          h1: ({ node, ...props }) => (
-                            <Typography
-                              variant="h5"
-                              component="div"
-                              sx={{
-                                fontWeight: 700,
-                                mb: 2,
-                                mt: 3,
-                                color: theme.palette.secondary,
-                                borderBottom: "2px solid",
-                                borderColor: theme.palette.secondary.light,
-                                pb: 1,
-                              }}
-                              {...props}
-                            />
-                          ),
-                          h2: ({ node, ...props }) => (
-                            <Typography
-                              variant="h6"
-                              component="div"
-                              sx={{
-                                fontWeight: 700,
-                                mb: 1.5,
-                                mt: 2.5,
-                                color: theme.palette.secondary.main,
-                              }}
-                              {...props}
-                            />
-                          ),
-                          h3: ({ node, ...props }) => (
-                            <Typography
-                              variant="subtitle1"
-                              component="div"
-                              sx={{
-                                fontWeight: 700,
-                                mb: 1.5,
-                                mt: 2,
-                                color: theme.palette.secondary.dark,
-                                borderLeft: "3px solid",
-                                borderColor: theme.palette.secondary.light,
-                                pl: 1.5,
-                              }}
-                              {...props}
-                            />
-                          ),
-                          ul: ({ node, ...props }) => (
-                            <Box
-                              component="ul"
-                              sx={{
-                                pl: 2,
-                                mb: 2.5,
-                                "& li": {
-                                  mb: 1,
-                                },
-                                "& li::marker": {
-                                  color: theme.palette.secondary.main,
-                                },
-                              }}
-                              {...props}
-                            />
-                          ),
-                          ol: ({ node, ...props }) => (
-                            <Box
-                              component="ol"
-                              sx={{
-                                pl: 2,
-                                mb: 2.5,
-                                "& li": {
-                                  mb: 1,
-                                },
-                                "& li::marker": {
-                                  color: theme.palette.secondary.main,
-                                  fontWeight: 600,
-                                },
-                              }}
-                              {...props}
-                            />
-                          ),
-                          li: ({ node, ...props }) => (
-                            <Typography
-                              component="li"
-                              variant="body1"
-                              sx={{
-                                mb: 1,
-                                pl: 0.5,
-                              }}
-                              {...props}
-                            />
-                          ),
-                          blockquote: ({ node, ...props }) => (
-                            <Box
-                              component="blockquote"
-                              sx={{
-                                borderLeft: "4px solid",
-                                borderColor: theme.palette.secondary.light,
-                                pl: 2,
-                                py: 0.5,
-                                my: 2,
-                                bgcolor: "rgba(16, 185, 129, 0.05)",
-                                borderRadius: "0 4px 4px 0",
-                                "& p": {
-                                  fontStyle: "italic",
-                                  color: theme.palette.text.secondary,
-                                  m: 0,
-                                },
-                              }}
-                              {...props}
-                            />
-                          ),
-                          code: ({ node, inline, ...props }) =>
-                            inline ? (
-                              <Box
-                                component="code"
-                                sx={{
-                                  fontFamily: "monospace",
-                                  bgcolor: "rgba(0, 0, 0, 0.04)",
-                                  p: 0.5,
-                                  borderRadius: 1,
-                                  fontSize: "0.9em",
-                                }}
-                                {...props}
-                              />
-                            ) : (
-                              <Box
-                                component="pre"
-                                sx={{
-                                  fontFamily: "monospace",
-                                  bgcolor: "rgba(0, 0, 0, 0.04)",
-                                  p: 1.5,
-                                  borderRadius: 2,
-                                  fontSize: "0.9em",
-                                  overflowX: "auto",
-                                }}
-                              >
-                                <Box component="code" {...props} />
-                              </Box>
-                            ),
-                          hr: ({ node, ...props }) => (
-                            <Divider
-                              sx={{
-                                my: 2.5,
-                                borderColor: "rgba(16, 185, 129, 0.2)",
-                              }}
-                              {...props}
-                            />
-                          ),
-                        }}
-                      />
-                      {streamingSummary && (
-                        <Box component="span" sx={{ display: "inline-block", ml: 0.5 }}>
-                          <Typography
-                            component="span"
-                            variant="body1"
-                            sx={{
-                              animation: "blink 1s infinite",
-                              "@keyframes blink": {
-                                "0%": { opacity: 0 },
-                                "50%": { opacity: 1 },
-                                "100%": { opacity: 0 },
-                              },
-                            }}
-                          >
-                            ▋
-                          </Typography>
-                        </Box>
-                      )}
+                      {renderMarkdown(summaries[currentPage], "secondary")}
                     </Paper>
                   </Box>
                 </Fade>
@@ -626,143 +616,7 @@ export default function ResultsView({ pdfData, onChatOpen, summaries, setSummari
             </Button>
           </Box>
           <Divider sx={{ mb: 2 }} />
-          <ReactMarkdown
-            components={{
-              p: ({ node, ...props }) => (
-                <Typography
-                  component="div"
-                  variant="body1"
-                  sx={{
-                    lineHeight: 1.8,
-                    fontSize: "1.05rem",
-                    mb: 2.5,
-                    color: "text.primary",
-                    textAlign: "justify",
-                  }}
-                  {...props}
-                />
-              ),
-              strong: ({ node, ...props }) => (
-                <Box
-                  component="span"
-                  sx={{
-                    fontWeight: 700,
-                    color: theme.palette.primary.dark,
-                    bgcolor: "rgba(58, 134, 255, 0.1)",
-                    px: 0.5,
-                    borderRadius: 1,
-                    display: "inline-block",
-                  }}
-                  {...props}
-                />
-              ),
-              em: ({ node, ...props }) => (
-                <Box
-                  component="span"
-                  sx={{
-                    fontStyle: "italic",
-                    color: theme.palette.primary.main,
-                    textDecoration: "underline",
-                    textDecorationColor: "rgba(58, 134, 255, 0.3)",
-                    textDecorationThickness: "1px",
-                    textUnderlineOffset: "3px",
-                  }}
-                  {...props}
-                />
-              ),
-              h1: ({ node, ...props }) => (
-                <Typography
-                  variant="h5"
-                  component="div"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 2,
-                    mt: 3,
-                    color: theme.palette.primary.dark,
-                    borderBottom: "2px solid",
-                    borderColor: theme.palette.primary.light,
-                    pb: 1,
-                  }}
-                  {...props}
-                />
-              ),
-              h2: ({ node, ...props }) => (
-                <Typography
-                  variant="h6"
-                  component="div"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 1.5,
-                    mt: 2.5,
-                    color: theme.palette.primary.main,
-                  }}
-                  {...props}
-                />
-              ),
-              h3: ({ node, ...props }) => (
-                <Typography
-                  variant="subtitle1"
-                  component="div"
-                  sx={{
-                    fontWeight: 700,
-                    mb: 1.5,
-                    mt: 2,
-                    color: theme.palette.primary.dark,
-                    borderLeft: "3px solid",
-                    borderColor: theme.palette.primary.light,
-                    pl: 1.5,
-                  }}
-                  {...props}
-                />
-              ),
-              ul: ({ node, ...props }) => (
-                <Box
-                  component="ul"
-                  sx={{
-                    pl: 2,
-                    mb: 2.5,
-                    "& li": {
-                      mb: 1,
-                    },
-                    "& li::marker": {
-                      color: theme.palette.primary.main,
-                    },
-                  }}
-                  {...props}
-                />
-              ),
-              ol: ({ node, ...props }) => (
-                <Box
-                  component="ol"
-                  sx={{
-                    pl: 2,
-                    mb: 2.5,
-                    "& li": {
-                      mb: 1,
-                    },
-                    "& li::marker": {
-                      color: theme.palette.primary.main,
-                      fontWeight: 600,
-                    },
-                  }}
-                  {...props}
-                />
-              ),
-              li: ({ node, ...props }) => (
-                <Typography
-                  component="li"
-                  variant="body1"
-                  sx={{
-                    mb: 1,
-                    pl: 0.5,
-                  }}
-                  {...props}
-                />
-              ),
-            }}
-          >
-            {pdfData.explanation}
-          </ReactMarkdown>
+          {renderMarkdown(pdfData.explanation, "primary")}
         </CardContent>
       </Card>
     </Box>
